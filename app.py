@@ -17,8 +17,8 @@ from model import PointHistoryClassifier
 
 from picamera2 import Picamera2 #added 120123
 
-import RPi.GPIO as GPIO
-import movement as mv
+import RPi.GPIO as GPIO #added 160123
+import movement as mv #added 160123
 
 def get_args():
     parser = argparse.ArgumentParser()
