@@ -15,6 +15,10 @@ from utils import CvFpsCalc
 from model import KeyPointClassifier
 from model import PointHistoryClassifier
 
+from picamera2 import Picamera2 #added 120123
+
+import RPi.GPIO as GPIO
+import movement as mv
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -53,9 +57,28 @@ def main():
     use_brect = True
 
     # Camera preparation ###############################################################
-    cap = cv.VideoCapture(cap_device)
-    cap.set(cv.CAP_PROP_FRAME_WIDTH, cap_width)
-    cap.set(cv.CAP_PROP_FRAME_HEIGHT, cap_height)
+    #cap = cv.VideoCapture(cap_device) removed 120124
+    #cap.set(cv.CAP_PROP_FRAME_WIDTH, cap_width) removed 120124
+    #cap.set(cv.CAP_PROP_FRAME_HEIGHT, cap_height) removed 120124
+    piCam = Picamera2() # added 120124
+    piCam.preview_configuration.main.size = (1280,720) # added 120124
+    piCam.preview_configuration.main.format = "RGB888" # added 120124
+    piCam.preview_configuration.align() # added 120124
+    piCam.start() # added 120124
+
+    # movement set up added 180123
+
+    GPIO.setmode(GPIO.BOARD)
+
+    ain2 = 31 # added 180123
+    ain1 = 33 # added 180123
+    bin1 = 35 # added 180123
+    bin2 = 37 # added 180123
+
+    GPIO.setup(ain2, GPIO.OUT) # added 180123
+    GPIO.setup(ain1, GPIO.OUT) # added 180123
+    GPIO.setup(bin1, GPIO.OUT) # added 180123
+    GPIO.setup(bin2, GPIO.OUT) # added 180123
 
     # Model load #############################################################
     mp_hands = mp.solutions.hands
@@ -108,14 +131,15 @@ def main():
         number, mode = select_mode(key, mode)
 
         # Camera capture #####################################################
-        ret, image = cap.read()
-        if not ret:
-            break
+        # ret, image = cap.read() removed 130124
+        # if not ret: removed 130124
+           # break removed 130124
+        image = piCam.capture_array() #added 130124
         image = cv.flip(image, 1)  # Mirror display
         debug_image = copy.deepcopy(image)
 
         # Detection implementation #############################################################
-        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+        # image = cv.cvtColor(image, cv.COLOR_BGR2RGB) removed 160124
 
         image.flags.writeable = False
         results = hands.process(image)
@@ -143,7 +167,25 @@ def main():
                 hand_sign_id = keypoint_classifier(pre_processed_landmark_list)
                 if hand_sign_id == 2:  # Point gesture
                     point_history.append(landmark_list[8])
+
+                elif hand_sign_id == 4: #added 180123
+                    mv.moveForward() #added 180123
+                    point_history.append([0, 0]) #added 180123
+
+                elif hand_sign_id == 5: # added 180123
+                    mv.moveBackwards() # added 180123
+                    point_history.append([0, 0]) # added 180123
+
+                elif hand_sign_id == 6: # added 180123
+                    mv.turnLeft() # added 180123
+                    point_history.append([0, 0]) # added 180123
+
+                elif hand_sign_id == 7: # added 180123
+                    mv.turnRight() # added 180123
+                    point_history.append([0, 0]) # added 180123
+
                 else:
+                    mv.stop() # added 180123
                     point_history.append([0, 0])
 
                 # Finger gesture classification
@@ -177,9 +219,10 @@ def main():
         # Screen reflection #############################################################
         cv.imshow('Hand Gesture Recognition', debug_image)
 
-    cap.release()
+    #cap.release() removed 130123
+    #image.release() #added 130123
+    GPIO.cleanup()
     cv.destroyAllWindows()
-
 
 def select_mode(key, mode):
     number = -1
